@@ -43,6 +43,35 @@ export default function SongView() {
     localStorage.setItem('spiewnik-font-level', String(fontLevel));
   }, [fontLevel]);
 
+  // Keep the screen awake while a song is open (phone is propped up, hands-free).
+  useEffect(() => {
+    let wakeLock = null;
+    let cancelled = false;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch {
+        // Not supported / permission denied — degrade silently.
+      }
+    };
+
+    requestWakeLock();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !cancelled) requestWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
+  }, []);
+
   const totalLines = useMemo(() => (song ? countLines(song) : 0), [song]);
 
   // Recompute px/sec whenever the content height or speed changes.
@@ -69,6 +98,14 @@ export default function SongView() {
       lastTsRef.current = ts;
 
       const maxScroll = el.scrollHeight - el.clientHeight;
+
+      // If the user dragged/flicked the content since the last frame, adopt
+      // that position as the new baseline instead of snapping back — the
+      // scroll should keep moving forward from wherever the finger left it.
+      if (Math.abs(el.scrollTop - scrollPosRef.current) > 1) {
+        scrollPosRef.current = el.scrollTop;
+      }
+
       scrollPosRef.current = Math.min(scrollPosRef.current + pxPerSecRef.current * speed * dt, maxScroll);
       el.scrollTop = scrollPosRef.current;
 

@@ -177,7 +177,7 @@ export default function SongView() {
                   <div className="lyric-line" key={li}>
                     {line.tokens.map((tok, ti) => (
                       <span className="token" key={ti}>
-                        {tok.chord && <span className="chord">{tok.chord}</span>}
+                        <span className="chord">{tok.chord || ' '}</span>
                         <span className="word">{tok.text || ' '}</span>
                       </span>
                     ))}

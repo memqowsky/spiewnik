@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { getSongById } from '../data/songs';
 
 const SECONDS_PER_LINE = 2.6; // baseline pace used to auto-generate scroll duration
+const DEFAULT_SPEED = 1.2;
+const FONT_SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6];
+const DEFAULT_FONT_LEVEL = 2; // index into FONT_SCALES, i.e. 1.0x
 
 function countLines(song) {
   let total = 0;
@@ -28,7 +31,17 @@ export default function SongView() {
   const scrollPosRef = useRef(0); // sub-pixel accumulator; el.scrollTop rounds to whole px
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(DEFAULT_SPEED);
+  const [fontLevel, setFontLevel] = useState(() => {
+    const saved = Number(localStorage.getItem('spiewnik-font-level'));
+    return Number.isInteger(saved) && saved >= 0 && saved < FONT_SCALES.length
+      ? saved
+      : DEFAULT_FONT_LEVEL;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('spiewnik-font-level', String(fontLevel));
+  }, [fontLevel]);
 
   const totalLines = useMemo(() => (song ? countLines(song) : 0), [song]);
 
@@ -73,13 +86,12 @@ export default function SongView() {
     };
   }, [isPlaying, speed]);
 
-  const pauseOnManualScroll = () => {
-    if (isPlaying) setIsPlaying(false);
-  };
-
   const restart = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   };
+
+  const shrinkFont = () => setFontLevel((l) => Math.max(l - 1, 0));
+  const growFont = () => setFontLevel((l) => Math.min(l + 1, FONT_SCALES.length - 1));
 
   if (!song) {
     return (
@@ -95,9 +107,7 @@ export default function SongView() {
       <div
         className="song-scroll"
         ref={scrollRef}
-        onWheel={pauseOnManualScroll}
-        onTouchStart={pauseOnManualScroll}
-        onPointerDown={pauseOnManualScroll}
+        style={{ '--font-scale': FONT_SCALES[fontLevel] }}
       >
         <div className="song-header">
           <h1>{song.title}</h1>
@@ -144,19 +154,41 @@ export default function SongView() {
       </div>
 
       <div className="controls-bar">
-        <Link to="/" className="ctrl-btn back-btn" aria-label="Wróć do spisu treści">
-          ← Spis
-        </Link>
-        <button
-          type="button"
-          className="ctrl-btn play-btn"
-          onClick={() => setIsPlaying((p) => !p)}
-        >
-          {isPlaying ? '⏸ Pauza' : '▶ Autoscroll'}
-        </button>
-        <button type="button" className="ctrl-btn" onClick={restart}>
-          ⤒ Od nowa
-        </button>
+        <div className="controls-row">
+          <Link to="/" className="ctrl-btn back-btn" aria-label="Wróć do spisu treści">
+            ← Spis
+          </Link>
+          <button
+            type="button"
+            className="ctrl-btn play-btn"
+            onClick={() => setIsPlaying((p) => !p)}
+          >
+            {isPlaying ? '⏸ Pauza' : '▶ Scroll'}
+          </button>
+          <button type="button" className="ctrl-btn" onClick={restart}>
+            ⤒ Reset
+          </button>
+          <div className="font-controls">
+            <button
+              type="button"
+              className="ctrl-btn font-btn"
+              onClick={shrinkFont}
+              disabled={fontLevel === 0}
+              aria-label="Zmniejsz czcionkę"
+            >
+              A-
+            </button>
+            <button
+              type="button"
+              className="ctrl-btn font-btn"
+              onClick={growFont}
+              disabled={fontLevel === FONT_SCALES.length - 1}
+              aria-label="Powiększ czcionkę"
+            >
+              A+
+            </button>
+          </div>
+        </div>
         <div className="speed-control">
           <span>Tempo {speed.toFixed(1)}x</span>
           <input

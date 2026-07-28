@@ -16,7 +16,7 @@ export default function SongList() {
   return (
     <div className="page song-list-page">
       <header className="list-header">
-        <h1>Śpiewnik by Memek</h1>
+        <h1>Śpiewnik</h1>
         <p className="subtitle">Poland Rock Festival</p>
       </header>
 
